@@ -1,0 +1,4 @@
+Created a s3 bucket inside aws and uploaded the datas i.e bookings.csv,hosts.csv,listings.csv inside it
+Created an IAM to connect snowflke with the s3 bucket
+Inside Snowflake inside the ddl.sql file created 3 tables named BOOKINGS, HOSTS and LISTINGS with the schemas related to those files
+Then created a resource.sql file which fetch the data from s3 to snowflake , copied all the data from the folders created inside the s3 bucket using @snowstage
