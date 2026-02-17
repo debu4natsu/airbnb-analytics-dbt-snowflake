@@ -1,4 +1,60 @@
+Instructions : if some thing is under [[]] these brackets that means its for interview purpose important
+
+day-1
 Created a s3 bucket inside aws and uploaded the datas i.e bookings.csv,hosts.csv,listings.csv inside it
 Created an IAM to connect snowflke with the s3 bucket
 Inside Snowflake inside the ddl.sql file created 3 tables named BOOKINGS, HOSTS and LISTINGS with the schemas related to those files
 Then created a resource.sql file which fetch the data from s3 to snowflake , copied all the data from the folders created inside the s3 bucket using @snowstage
+installed dbt using uv
+first did uv init and set the project structure , then used dbt-init to setup the local devlopment with snowflake earlier did uv add dbt-snowflake to install those packages
+got created the /.dbt/profiles.yml file, whenever u are interacting with snowflake so u need to authinticate while running like every command . so when u want to communicate with your ide to snowflake it will use a kind of connection to authticate and this profile.yml is that thing
+ya so for debugging purpose well make a copy of the .profile file inside the dbt folder
+like previously we used to create layers manually like gold silver and bronze but using dbt we can create a template of the layer and bt will handel all other things by itself(correct this if i'm wrong)
+
+day-2
+Bro the SELECT statement will remain the same bcoz thats pure sql if u want to query data so it says I will handel the different DDL commands of different different different adapters just provide me the SELECT statements and thats it and i will handel all of the boiler plate  DDL commands thats the power of DBT models
+Now was seeing the tutorial and there the instructor was saying that since u installed dbt u have to power use for dbt extension in vs code and set the Associate File Types things from sql and yaml to Jinja sql and yaml and i was not able to do those things coz i'm working on pycharm then i focused on the dbt extension there it says Integration with dbt CLI. Syntax highlighting and codeinsight for SQL in Jinja2 templates. So i guess its automatically converting those files from sql and yaml to Jinja thing
+Moving forward to the Lineage part since Pycharm doesn't have the support for lineage we have to manually do like
+" dbt docs generate
+and then dbt docs serve "
+
+when we did this we get the endpoint for the dbt docs where u will find all the info regarding dbt just like SparkUI anf there the lineage graph is also present where only one object is coming which we created thats demo.sql and the graph also shows demo
+configured the dbt and vs code with the jinja sql as well as jinja yaml
+
+[[now what we did is made changes in the properties.yml file inside the bronze layer and changed the config -> materialized to view
+now what will happen is like  dbt_project.yml will say that bronze folder files should be of table type but properties.yml will say it should of view type since the precedence of properties.yml is more so the files will be of view type(just taking an example)
+but the best practice is like we should manage it from the parent i.e the dbt_projects.yml and if there is like specific requirements then we should only do this
+
+day-3
+so ya like inside the snowflake all the things were created inside the dbt_schema which we didn't want coz we were creating the bronze layer, so we wanted a separate bronze schema
+to make this happen we have to make changes in the dbt_project.yml file since we were definig a seperate model for the bronze layer so there the +materialized was already set to table, now we added one more field schema were we set it to bronze
+and it followed the protocol of "Macro behind the schema name i.e DBT_SCHEMA_BRONZE", as shown in the terminal while running the command dbt run 14:24:47  1 of 3 START sql table model dbt_schema_bronze.bronze_bookings like this
+so to remove this default schema thing we have to create a macro called generate_schema_name.sql where we have to paste the code provided in the custom_schema_section of dbt docs
+so now running the cmd dbt run we get 14:36:54  1 of 3 START sql table model bronze.bronze_bookings .............. where the macro behid the schema name is removed.]]
+
+
+the analyes folder is for experimenting purpose and will not be added in your deployment or devlopment , its just for analysis
+learned how to use if-else, loop statement using jinja.
+
+day-4
+implementing the incremental load logic
+since we don't know which data should be loaded at the first step so the industry standard is whatever data greater than 1900-01-01 will get loaded
+code to achieve the incremental_load
+```
+{% set incremental_flag  = 1 %}
+{% set incremental_col = 'CREATED_AT' %}
+
+SELECT * FROM {{ source('staging', 'bookings') }}
+
+{% if incremental_flag == 1 %}
+WHERE {{incremental_col}} > (SELECT COALESCE(MAX({{incremental_col}}),1900-01-01) FROM {{this}})
+{%  endif %}
+```
+let me explain,
+1. using the incremental_flag = 1  we are switching on the incremental load logic
+2. since CREATED_AT col pheli baar me to load hi hoga so MAX value nikl nhi paeynge
+3. pheli baar jab run karega to since table to ingest hoa nhi hai to max value kha se ayega mtln NULL hi hoga obviously right, so isko tackle karne k liye COALESCE ka use kar k NULL milega to 1900-01-01 ko set krdega
+4. 1900-01-01 se agge wale ka date se data present hoga to automatically whi date se fetch krna shuru karr dega
+5. isliye dusre din jab phir data fetch hoga tab incremental_col i.e CREATED_AT pe MAX nikl paeynge kyukiu data present hoga
+6. so jo MAX value hai whi se phir data ingestion start hoga
+
